@@ -17,10 +17,18 @@ import sys
 #import os
 import datetime
 
+##### Today is ########
+day_default = datetime.datetime.now().day
+month_default = datetime.datetime.now().month
+year_default = datetime.datetime.now().year
+hour_default = datetime.datetime.now().hour
+minute_default = datetime.datetime.now().minute
+
 def create_db():
-	'''Function create database Sqlite with name: 'reminders.db'  if it's absent in dirrectory with this program
+	'''Function creates database Sqlite with name: 'reminders.db'  if it's absent in dirrectory with this program
 	'''
-	# TODO: 1. id must be automaticaly
+	# TODO: 1. id must be automaticaly - Done
+	#		2. Another fields must be adding (rem for avryyear or no)!
 	try:
 		con = sqlite3.connect('reminders.db')
 		cur = con.cursor()
@@ -34,15 +42,17 @@ def create_db():
 	 		 date_minute INTEGER,
 				unique (textReminder))''')
 		con.commit()
-		print 'Create db had done'
+		print 'Creating db had done'
 		con.close()
 	except sqlite3.OperationalError:
 		print 'reminders.db had made before'
 
 def reminder_from_cl(len_args):
-	print len_args, 'i am hire'
+	'''Function works with values wich had entered from comand line. You can don't use  this method, but use entering with GUI
+	'''
+	#TODO:	1. Use arguments with names ?!
 	if len_args == 2:
-		print len_args, 'i am hire'
+		#print len_args, 'i am hire'
 		new_reminder(text = sys.argv[1])
 	else:
 		try:
@@ -50,38 +60,76 @@ def reminder_from_cl(len_args):
 		except IndexError:
 			print 'You must input 6 arguments for entering with comand line!'	
 
-def new_reminder(text = 'New Year', year = datetime.date.today().year, month = datetime.date.today().month, day = datetime.date.today().day, hour = datetime.datetime.now().hour + 1, minutes = datetime.datetime.now().minute):
-	'''Function control text of new reminder: if text not new - write it in new message in window,
-		if new reminder - write it to database (other fields must be full with information, defaults values are currant time + 1 hour )
+def new_reminder(text = 'New Year', year = year_default, month = month_default, day = day_default, hour = hour_default + 1, minutes = minute_default):
+	'''Function controls text of new reminder: if text not new - write it in new message in window,
+		if new reminder - write it to database (other fields must be full with information, defaults values are current time + 1 hour )
 		TODO: 1.Use timedelta for writing data in db
 	'''
-	a = 'INSERT INTO reminders VALUES(null,\"' + str(text) +'", ' +  str(year) +', '+ str(month) +', ' + str(day) + ', ' + str(hour) + ', ' + str(minutes)+ ')'#' + str(id) + ', "'
-	print a
+	require = 'INSERT INTO reminders VALUES(null,\"' + str(text) +'", ' +  str(year) +', '+ str(month) +', ' + str(day) + ', ' + str(hour) + ', ' + str(minutes)+ ')'#' + str(id) + ', "'
+	print require
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
 	try:
-		cur.execute(a)
+		cur.execute(require)
 		con.commit()
 	except sqlite3.IntegrityError:
 		print 'This value has been entered into database before!'
 	con.close()	
 
-def find_actual_rem():
-	'''Function control time-fields in all tables and find actualy reminders for currant day
+def find_actual_rem( year = year_default, month = month_default, day = day_default):
+	'''Function controls date_ fields in all tables and find actualy reminders for current day
 		This Function must be started with set into deltatime
 	'''
 	# TODO: 1. Use datetime for search
+	
+	require = 'SELECT textReminder, date_hour, date_minute from reminders where date_year = \"' + str(year) +'\" and date_month = \"' + str(month) + '\" and date_day = \"'+ str(day) +'\"'
+	#print require
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
-	cur.execute('SELECT *FROM reminders')
+	cur.execute(require) #('SELECT textReminder, date_hour, date_minute from reminders where date_month = "2"')#  <<<--- old
 	data = cur.fetchall()
 	con.close()
 	return data
 
 def show_rem():
-	'''Function recieves all actualy reminders for today and show all of them in special bright windows
+	'''Function recieves  actual reminder for this time and show it in special bright windows
 	'''
 	pass
+
+def save_reminder(event):
+	'''Function works when user press to button 'Save' and reads text from the textfield and from the date-fields. 
+	If it isn't problem with entered data, call function new_reminder
+	'''
+	#print 'You call save_reminder function'
+	new_reminder(text = unicode(tx.get('1.0', 'end')))
+	#print ent_day.get('1.0', 'end')
+	#print text
+
+
+def reminder_today(event):
+	'''Function all reminders for today
+	'''
+	# TODO: 1. Must show reminders in special window with comfort for reading form
+	actual_today = find_actual_rem(day = day_default)
+	print actual_today # show list of reminders for today in comand last. 
+
+	
+def reminder_this_week(event):
+	print 'You call reminder_this_week function'
+	try:
+		day = int(ent_day.get())
+	except ValueError:
+		ent_day.delete(0, END)
+		ent_day.insert(0, day_default)
+		print day_ent.get()
+
+	if not(day>0 and day<32):
+		ent_day.delete(0, END)
+		ent_day.insert(0, day_default)
+	print ent_day.get()
+
+def reminder_this_month(event):
+	print 'You call reminder_this_month function'
 
 
 
@@ -94,16 +142,85 @@ create_db()
 if len(sys.argv)>1: reminder_from_cl(len(sys.argv))
 	#print len(sys.argv), sys.argv
 	
+rem_month = find_actual_rem()
+#rem_month = []
+#rem_cur_year = find_actual_rem()
+#for i in rem_cur_year:
+#	if i[2] == 2015 and i[3] == 1:
+#		rem_month.append(i)
+#	print rem_month
+print rem_month
 
-rem_month = []
-rem_cur_year = find_actual_rem()
-for i in rem_cur_year:
-	if i[2] == 2015 and i[3] == 1:
-		rem_month.append(i)
-	print rem_month
 root = Tk()
+root.title(' My reminders')
 root.minsize(height = 300, width = 300) # Min size of main window
-tx = Text(root, height = 3, width = 70, bg = 'lightgreen', font = "Verdana 14",	wrap = WORD) # textfield
+
+lab = Label(root, text = 'Write your reminder hire:', font = 'Verdana 12')
+lab.grid(row = 0, column = 0)
+
+tx = Text(root, height = 6, width = 25, bg = 'lightgreen', font = "Verdana 14",	wrap = WORD) # textfield
 tx.grid(row = 1, column = 0, sticky='nsew')
 
+lab = Label(root, text = 'Write date:', font = 'Verdana 12')
+lab.grid(row = 0, column = 1)
+
+#fra = Frame(root, height = 80, width = 700, bg = 'green')
+#fra.grid(row = 3, column = 0)
+lab = Label(root, text = 'Day:', font = 'Verdana 10')
+lab.grid(row = 1, column = 1)
+
+ent_day = Entry(root, width = 2, bd = 2)
+ent_day.insert(0, day_default)
+ent_day.grid(row = 1, column = 2)
+ent_day.bind('<Motion>', reminder_today)
+#ent_day.pack()
+
+lab = Label(root, text = 'Month:', font = 'Verdana 10')
+lab.grid(row = 2, column = 1)
+
+ent_month = Entry(root, width = 2, bd = 2)
+ent_month.insert(0, month_default)
+ent_month.grid(row = 2, column = 2)
+
+lab = Label(root, text = 'Year:', font = 'Verdana 10')
+lab.grid(row = 3, column = 1)
+
+ent_year = Entry(root, width = 4, bd = 2)
+ent_year.insert(0, year_default)
+ent_year.grid(row = 3, column = 2)
+
+lab = Label(root, text = 'Hour:', font = 'Verdana 10')
+lab.grid(row = 4, column = 1)
+
+ent_hour = Entry(root, width = 4, bd = 2)
+ent_hour.insert(0, hour_default+1)
+ent_hour.grid(row = 4, column = 2)
+
+lab = Label(root, text = 'Minutes:', font = 'Verdana 10')
+lab.grid(row = 5, column = 1)
+
+ent_minute = Entry(root, width = 4, bd = 2)
+ent_minute.insert(0, minute_default)
+ent_minute.grid(row = 5, column = 2)
+
+##### BUTTONS #####
+but1 = Button(root, height = 1, width = 20, font = 'Verdana 20', bg = 'gold', activebackground = 'green')
+but1['text'] = "Save"
+but1.bind('<Button-1>', save_reminder)
+but1.grid(row = 2,  column = 0)
+
+but2 = Button(root)
+but2['text'] = "Reminders for today"
+but2.bind('<Button-1>', reminder_today)
+but2.grid(row = 6,  column = 0)
+
+but3 = Button(root)
+but3['text'] = "Rem for week"
+but3.bind('<Button-1>', reminder_this_week)
+but3.grid(row = 6,  column = 1)
+
+but4 = Button(root)
+but4['text'] = "Reminders for month"
+but4.bind('<Button-1>', find_actual_rem(month = month_default))
+but4.grid(row = 6,  column = 2)
 root.mainloop()
