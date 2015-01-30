@@ -16,6 +16,7 @@ from Tkinter import *
 import sys
 #import os
 import datetime
+import calendar # it can help to find day of the week and number of days in month
 
 ##### Today is ########
 day_default = datetime.datetime.now().day
@@ -65,12 +66,12 @@ def new_reminder(text = 'New Year', year = year_default, month = month_default, 
 		if new reminder - write it to database (other fields must be full with information, defaults values are current time + 1 hour )
 		TODO: 1.Use timedelta for writing data in db
 	'''
-	require = 'INSERT INTO reminders VALUES(null,\"' + str(text) +'", ' +  str(year) +', '+ str(month) +', ' + str(day) + ', ' + str(hour) + ', ' + str(minutes)+ ')'#' + str(id) + ', "'
-	print require
+	#require = 'INSERT INTO reminders VALUES(null,\"' + str(text) +'", ' +  str(year) +', '+ str(month) +', ' + str(day) + ', ' + str(hour) + ', ' + str(minutes)+ ')'#' + str(id) + ', "'
+	t = (text, year, month, day, hour, minutes)
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
 	try:
-		cur.execute(require)
+		cur.execute('INSERT INTO reminders VALUES(null, ?, ?, ?, ?, ?, ?)',t)
 		con.commit()
 	except sqlite3.IntegrityError:
 		print 'This value has been entered into database before!'
@@ -81,12 +82,10 @@ def find_actual_rem( year = year_default, month = month_default, day = day_defau
 		This Function must be started with set into deltatime
 	'''
 	# TODO: 1. Use datetime for search
-	
-	require = 'SELECT textReminder, date_hour, date_minute from reminders where date_year = \"' + str(year) +'\" and date_month = \"' + str(month) + '\" and date_day = \"'+ str(day) +'\"'
-	#print require
+	t=(year, month, day)
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
-	cur.execute(require) #('SELECT textReminder, date_hour, date_minute from reminders where date_month = "2"')#  <<<--- old
+	cur.execute('SELECT textReminder, date_hour, date_minute from reminders where date_year = ? and date_month = ? and date_day = ?', t) #  <<<--- old
 	data = cur.fetchall()
 	con.close()
 	return data
@@ -107,7 +106,7 @@ def save_reminder(event):
 
 
 def reminder_today(event):
-	'''Function all reminders for today
+	'''Function shows all reminders for today
 	'''
 	# TODO: 1. Must show reminders in special window with comfort for reading form
 	actual_today = find_actual_rem(day = day_default)
@@ -115,28 +114,55 @@ def reminder_today(event):
 
 	
 def reminder_this_week(event):
+	'''Function shows all reminders for current week
+	'''
+	# TODO:	1. Make determination of curren weekday and find all remainders for this week in bd.
+	#		2. Reminders for future and tuday must be signed with green color, for last - red!
+	def error_input():
+		'''Function put in current date in fied, if user entered noncorrect data
+		'''
+		ent_day.delete(0, END)
+		ent_day.insert(0, day_default)
+		day = ent_day.get()
+		ent_day ['bg'] = 'pink'
+		return day
+
+	weekday_of_firstday, days_in_month = calendar.monthrange(year_default, month_default)
+	month = ent_month.get()
 	print 'You call reminder_this_week function'
 	try:
 		day = int(ent_day.get())
+	except NameError:
+		day = error_input()
 	except ValueError:
-		ent_day.delete(0, END)
-		ent_day.insert(0, day_default)
-		print day_ent.get()
+		day = error_input()
 
-	if not(day>0 and day<32):
-		ent_day.delete(0, END)
-		ent_day.insert(0, day_default)
-	print ent_day.get()
+	if not(day>0 and day<=days_in_month):
+		day = error_input()
+	print day
 
 def reminder_this_month(event):
 	print 'You call reminder_this_month function'
 
+def counter():
+	'''Only for teach SQLite! Delete after teaching!!!
+	'''
+	con = sqlite3.connect('reminders.db')
+	cur = con.cursor()
+	cur.execute('SELECT count(*) from reminders ')
+	m = cur.fetchone()
+	cur.execute('SELECT count(*) from reminders where date_day = "1";')
+	n = cur.fetchall()
+	con.close()
+	print 'Counter test:', n, m
+	
 
 
 #### Main window ####
 print sqlite3.version # currant version sqlite3
 create_db()
 
+print datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")
 # You can input your reminder in command line with format (after filename must be 6 arguments!):
 # ...$ python rem_me.py 'MESSAGE' YEAR MONTH DAY HOUR MIN
 if len(sys.argv)>1: reminder_from_cl(len(sys.argv))
@@ -169,10 +195,10 @@ lab.grid(row = 0, column = 1)
 lab = Label(root, text = 'Day:', font = 'Verdana 10')
 lab.grid(row = 1, column = 1)
 
-ent_day = Entry(root, width = 2, bd = 2)
+ent_day = Entry(root, width = 2, bd = 2, bg = 'white')
 ent_day.insert(0, day_default)
 ent_day.grid(row = 1, column = 2)
-ent_day.bind('<Motion>', reminder_today)
+#ent_day.bind('<Motion>', reminder_today)
 #ent_day.pack()
 
 lab = Label(root, text = 'Month:', font = 'Verdana 10')
@@ -210,7 +236,7 @@ but1.bind('<Button-1>', save_reminder)
 but1.grid(row = 2,  column = 0)
 
 but2 = Button(root)
-but2['text'] = "Reminders for today"
+but2['text'] = "Rem for day"
 but2.bind('<Button-1>', reminder_today)
 but2.grid(row = 6,  column = 0)
 
@@ -220,7 +246,9 @@ but3.bind('<Button-1>', reminder_this_week)
 but3.grid(row = 6,  column = 1)
 
 but4 = Button(root)
-but4['text'] = "Reminders for month"
+but4['text'] = "Rem for month"
 but4.bind('<Button-1>', find_actual_rem(month = month_default))
 but4.grid(row = 6,  column = 2)
+
+counter()
 root.mainloop()
