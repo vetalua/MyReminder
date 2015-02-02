@@ -14,24 +14,29 @@
 import sqlite3
 from Tkinter import *
 import sys
-#import os
 import datetime
 import calendar # it can help to find day of the week and number of days in month
 from tkMessageBox import *
 
-##### Today is ########
+######################################################################################################## Today is ########
 day_default = datetime.datetime.now().day
 month_default = datetime.datetime.now().month
 year_default = datetime.datetime.now().year
 hour_default = datetime.datetime.now().hour
 minute_default = datetime.datetime.now().minute
-weekday_of_firstday, days_in_month = calendar.monthrange(year_default, month_default)
 
+####################################################################### Day of week, days in month,  dict names of monthes
+weekday_of_firstday, days_in_month = calendar.monthrange(year_default, month_default)
+month_name = {1:'Jan.', 2:'Feb.', 3:'Mar.', 4:'Apr.', 5:'May', 6:'Jun.', 7:'Jul.', 8:'Aug.', 9:'Sept.', 10:'Oct.', 11:'Nov.', 12:'Dec.'}
+#current_time = str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")
+
+###########################################################################################################    FUNCTIONS
 def create_db():
 	'''Function creates database Sqlite with name: 'reminders.db'  if it's absent in dirrectory with this program
 	'''
 	# TODO: 1. id must be automaticaly - Done
 	#		2. Another fields must be adding (rem for avryyear or no)!
+	#show_status (u'Connect to database') # with this string we have Traceback (most recent call last): NameError: global name 'status' is not defined. WHY?
 	try:
 		con = sqlite3.connect('reminders.db')
 		cur = con.cursor()
@@ -54,6 +59,7 @@ def reminder_from_cl(len_args):
 	'''Function works with values wich had entered from comand line. You can don't use  this method, but use entering with GUI
 	'''
 	#TODO:	1. Use arguments with names ?!
+	show_status (u'Receive Reminder from Comand line')
 	if len_args == 2:
 		#print len_args, 'i am hire'
 		new_reminder(text = sys.argv[1])
@@ -69,6 +75,7 @@ def new_reminder(text = 'New Year', year = year_default, month = month_default, 
 		TODO: 1.Use timedelta for writing data in db
 	'''
 	#require = 'INSERT INTO reminders VALUES(null,\"' + str(text) +'", ' +  str(year) +', '+ str(month) +', ' + str(day) + ', ' + str(hour) + ', ' + str(minutes)+ ')'#' + str(id) + ', "'
+	show_status (u'Adding New Reminder to db')
 	t = (text, year, month, day, hour, minutes)
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
@@ -83,11 +90,12 @@ def find_actual_rem( data, year = year_default, month = month_default, day = day
 	'''Function controls date_ fields in all tables and find actualy reminders for current day
 		This Function must be started with set into deltatime
 	'''
-	# TODO: 1. Use datetime for search
+	# TODO: 1. Use datetime for search - Searching work normal now.
+	show_status (u'Finding actual to ' + str(day) + '.'+ str(month)+'.'+str(year) )
 	t=(year, month, day)
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
-	cur.execute('SELECT textReminder, date_month, date_day, date_hour, date_minute from reminders where date_year = ? and date_month = ? and date_day = ?', t) #  <<<--- old
+	cur.execute('SELECT textReminder, date_month, date_day, date_hour, date_minute from reminders where date_year = ? and date_month = ? and date_day = ? order by date_year, date_month, date_day, date_hour, date_minute', t) #  <<<--- old
 	#data = cur.fetchall()
 	while True:
 		tmp = cur.fetchone()
@@ -96,52 +104,59 @@ def find_actual_rem( data, year = year_default, month = month_default, day = day
 		else:
 			break
 	con.close()
-	#print t, ' ===> ', data
 	return data
 
 def show_rem(name = u'Test', data=u'Hier your info'):
-	'''Function recieves  actual reminder for this time and show it in special bright windows
+	'''Function recieves  reminder wich user require with button  and show it in windows
 	'''
-	#TODO:	1. Func must show any list with data in right for reading form
+	#TODO:	1. Func must show any list with data in right for reading form - DONE.
+	# Data consist of:
 	# [           0,          1,        2,         3,           4]
 	# [textReminder, date_month, date_day, date_hour, date_minute]
-	info = name + ':\n'
+	show_status (u'Show info:' + name)
+	info = '\n'
 	for i in data:
-		info += str(i[2]) + '.' + str(i[1]) +'  at' + str(i[3]) + ' : ' + str(i[3]) +'  TODO =>' + str(i[0]) + '\n' 
-	info += str(len(data))
+		info += str(i[2]) + ' ' + month_name[i[1]] +'  at ' + str(i[3]) + ':' + str(i[4]) +'  => ' + str(i[0]) + '\n' 
+	info += '   All:' + str(len(data)) + ' reminders'
 
 	showinfo(name, info)
 
 def save_reminder(event):
 	'''Function works when user press to button 'Save' and reads text from the textfield and from the date-fields. 
-	If it isn't problem with entered data, call function new_reminder
-	'''
-	#print 'You call save_reminder function'
-	
+	If it isn't problem with entered data, call function new_reminder for saving to database
+	'''	
+	show_status (u'Saving reminder')
 	control_env_fields(None)
 	new_reminder(text = unicode(tx.get('1.0', 'end')), year = ent_year.get(), month = ent_month.get(), day = ent_day.get(), hour = ent_hour.get(), minutes = ent_minute.get())
 	#print ent_day.get('1.0', 'end')
 	#print text
 
 def error_input(obj, default_value = 1):
-		'''Function put in current date in field, if user entered noncorrect data
-		'''
-		obj.delete(0, END)
-		obj.insert(0, default_value)
-		res = obj.get()
-		obj ['bg'] = 'pink'
-		return res
+	'''Function put current date in field, if user entered noncorrect data 
+	'''
+	show_status (u'Finding errors in date-fields')
+	obj.delete(0, END)
+	obj.insert(0, default_value)
+	res = obj.get()
+	obj ['bg'] = 'pink'
+	return res
 
 def reminder_today(event):
 	'''Function shows all reminders for today
 	'''
-	# TODO: 1. Must show reminders in special window with comfort for reading form
+	show_status (u'Finding Reminders for today')
+	# TODO: 1. Must show reminders in special window with comfort for reading form - DONE in function show_rem
 	result = rem_for_one_day(day_default)
-	print 'Rem for today =', len(result),'\n', result
-	show_rem(name = u'All Reminders for Today', data = result)
+	#print 'Rem for today =', len(result),'\n', result
+	#show_rem(name = u'All Reminders for Today', data = result)
+	res = next_autoshow_rem(result)
+	return res
 	
 
 def rem_for_one_day(rem_day):
+	'''Function get rem_day for searching in database of all reminders for this rem_day 
+	'''
+	show_status (u'Finding Reminders for day - ' + unicode(rem_day))
 	res = []
 	res = find_actual_rem(data = res, day = rem_day )# = day_default)
 	print rem_day, res
@@ -151,45 +166,37 @@ def rem_for_one_day(rem_day):
 def reminder_this_week(event):
 	'''Function shows all reminders for current week
 	'''
-	print 'You call reminder_this_week function'
 	res = []
 	count_day_in_last_month = 0
+	show_status (u'Finding Reminders for this week')
 	if (day_default + 7) <= days_in_month: 			# if all next week only in current month
 		print 'in reminder_this_week all day in this month'
 		for day in range(day_default, day_default+7):
 			res =find_actual_rem(data = res, day=day, month = month_default)
-			#res.append(rems) # this method gave noncomfort result as: [((),()),()]. I want to have only list of tuples 
 	else:
 		print 'in two monthes part 1'
 		res_part1 = []
 		res_part2 = []
 		for day in range(day_default, days_in_month+1):
 			res_part1 =find_actual_rem(data = res_part1, day=day, month = month_default)
-			#res.append(rems)
 			count_day_in_last_month += 1
-		if month_default == 12:     # if we will have the part in the end of current year and 2nd part in the next year
+		if month_default == 12:     # if we will have the 1 part in the end of current year and 2nd part in the next year
 			year = year_default + 1
 			month = 1
 		else:
 			year =year_default
 			month = month_default + 1
-		#print year, month, '-->', res
-		
+				
 		for day in range(1, 7-count_day_in_last_month):
 			res_part2 = find_actual_rem(data = res_part2, day=day, month = month, year = year)
-			#if rems:
-			#	res.append(rems)
-				#print 'emty day'
 		res = res_part1 + res_part2
-			#print rems, (rems ==True), ' <--->',res
 	print 'Rem-s for week =', len(res), res
-		#days_for_weekend = weekday_of_firstday
 	show_rem(name = u'All Reminders for week:', data = res )
 
 def reminder_this_month(event):
 	'''Function return all Reminders for current month
 	'''
-	print 'You call reminder_this_month function'
+	show_status (u'Finding Reminders for month')
 	res = []
 	for i in range(1, days_in_month+1):
 		print 'rem month',res
@@ -202,9 +209,8 @@ def reminder_all(event):
 	'''Show all reminders in database
 	'''
 	# TODO:	1. Use another window for show res. In it must be: scrollbar, delite-function, selectin with colors old and new reminders and other
-	print 'You call reminder_all function'
+	show_status (u'Finding ALL Reminders')
 	res = []
-	#res =find_actual_rem(data = res, day = i, month = month_default, year = year_default)
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
 	max_id = counter()
@@ -212,19 +218,22 @@ def reminder_all(event):
 		id_tuple = i,
 		print id_tuple
 		cur.execute('SELECT textReminder, date_month, date_day, date_hour, date_minute from reminders where id = ?', id_tuple)
-		data = cur.fetchall()
-		res.append(data)
+		data = cur.fetchone()
+		print 'all. step -', i, ' - ', data
+		if data:			# if reminder had cut from database, this func return None. I control data for solving problems 
+			res.append(data)
 	con.close()
+	print res
 	show_rem(name =u'All Reminders', data = res)
 
 def control_env_fields(event):
 	'''Control and if finds error - makes correctin of values in all Entry-fields.  (ent_year, ent_month, ent_day, ent_hour, ent_minute) 
 	'''
-	# TODO:	1. Make determination of curren weekday and find all remainders for this week in bd.
-	#		2. Reminders for future and tuday must be signed with green color, for last - red!
-	
+	# TODO:	1. Make determination of curren weekday and find all remainders for this week in bd. - I am not sure that must do now
+	#		2. Reminders for future and today must be signed with green color, for last - red!
+	#show_status (u'Controll values in date-fields')
 	month = ent_month.get()
-	all_entry_fields = ((ent_year, year_default, year_default+10, year_default),
+	all_entry_fields = ((ent_year, year_default, year_default+10, year_default),  # consist of Entry (year, month, day, hour,minute), and determining values for min, max, default to everyone of it
 	  					(ent_month, 1, 12, month_default),
 	    				(ent_day, 1, days_in_month, day_default),
 	     				(ent_hour, 0, 23, hour_default + 1),
@@ -243,7 +252,7 @@ def control_env_fields(event):
 		print val
 
 def counter():
-	'''COunt number of rows in db
+	'''Count number of rows in db
 	'''
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
@@ -253,31 +262,53 @@ def counter():
 	n = cur.fetchall()
 	con.close()
 	return m[0]
-	
 
-#### Main window ####
-print sqlite3.version # currant version sqlite3
+def next_autoshow_rem(data):
+	# Fuction finds skiped reminders (creates a list), actual reminders (create a list) and next reminder
+	# Data consist of:
+	# [           0,          1,        2,         3,           4]
+	# [textReminder, date_month, date_day, date_hour, date_minute]
+	rem_actual_today = []
+	rem_skiped_today = []
+	for rem in data:
+		if rem[3]<hour_default:
+			#print rem[3], ' < ', hour_default
+			rem_skiped_today.append(rem)
+		else:
+			#print rem[3], ' > ', hour_default
+			rem_actual_today.append(rem)
+	next_rem = rem_actual_today[0]
+	show_rem(name = u'All actual Reminders for Today', data = rem_actual_today)
+	rem_actual_today.pop()
+	#print 'skip -', rem_skiped_today, len(rem_skiped_today)
+	#print 'actual -', rem_actual_today, len(rem_actual_today)
+	#print 'next -', next_rem
+
+	return [next_rem, rem_skiped_today, rem_actual_today]
+
+def show_status(message):
+	'''Function writes message in status window
+	'''
+	status['text'] = 'Last operation: ' + str(message)
+
+########################################################################################################################
+
 create_db()
-
-print datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")
+#print sqlite3.version # currant version sqlite3
+#print datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p") # servicing info
+#status_first = str(sqlite3.version) + '\n' + str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p"))
 # You can input your reminder in command line with format (after filename must be 6 arguments!):
 # ...$ python rem_me.py 'MESSAGE' YEAR MONTH DAY HOUR MIN
-if len(sys.argv)>1: reminder_from_cl(len(sys.argv))
-	#print len(sys.argv), sys.argv
-	
-#rem_month = find_actual_rem()
-#rem_month = []
-#rem_cur_year = find_actual_rem()
-#for i in rem_cur_year:
-#	if i[2] == 2015 and i[3] == 1:
-#		rem_month.append(i)
-#	print rem_month
-#print rem_month
+
+if len(sys.argv)>1:
+	reminder_from_cl(len(sys.argv))
+
+###################################################################################################### Main window ####
 
 root = Tk()
 root.title(' My reminders')
-root.minsize(height = 375, width = 620) # Min size of main window
-root.maxsize(height = 375, width = 620) # Max size of main window
+root.minsize(height = 400, width = 620) # Min size of main window
+root.maxsize(height = 400, width = 620) # Max size of main window
 
 lab = Label(root, text = 'Write your reminder hire:', font = 'Verdana 12')
 lab.grid(row = 0, column = 0)
@@ -288,8 +319,6 @@ tx.grid(row = 1, column = 0, sticky='nsew')
 lab = Label(root, text = 'Write date:', font = 'Verdana 12')
 lab.grid(row = 0, column = 1)
 
-#fra = Frame(root, height = 80, width = 700, bg = 'green')
-#fra.grid(row = 3, column = 0)
 lab = Label(root, text = 'Year:', font = 'Verdana 10')
 lab.grid(row = 2, column = 1)
 
@@ -348,15 +377,26 @@ but4['text'] = "Rem for month"
 but4.bind('<Button-1>', reminder_this_month)
 but4.grid(row = 7,  column = 2)
 
-but5 = Button(root)
-but5['text'] = "Cntrl fields"
-but5.bind('<Button-1>', control_env_fields)
-but5.grid(row = 8,  column = 0)
+#but5 = Button(root)
+#but5['text'] = "Cntrl fields"
+#but5.bind('<Button-1>', control_env_fields)
+#but5.grid(row = 8,  column = 0)
 
 but6 = Button(root)
 but6['text'] = "Rem ALL"
 but6.bind('<Button-1>', reminder_all)
 but6.grid(row = 8,  column = 1)
 
-print 'Therenis:', counter(), 'records in database'
+fra = Frame(root, height = 25, width = 400, bg = 'white') # as status window in the bootom of window
+fra.grid(row = 9, column = 0)
+status = Label(fra, text = 'Starting: '+ str(counter()) +' Reminders in DB \n Now: '
+	+ str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")), font = 'Verdana 8', justify = 'left', bg = 'white')
+status.grid(row = 0, column = 0)
+
+rem_today = reminder_today(None)
+# [ next_rem,  rem_skiped_today,  rem_actual_today ]  
+# [        0,               1[],               2[] ]               
+#rem_today_sorted = next_autoshow_rem( rem_today)
+
+print 'There is:', counter(), 'records in database'
 root.mainloop()
