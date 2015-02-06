@@ -18,19 +18,12 @@ import datetime
 import calendar # it can help to find day of the week and number of days in month
 from tkMessageBox import *
 import threading
+from time import gmtime, strftime
 
 ######################################################################################################## Today is ########
 def refrash_date():
 	'''Function refrash time and day and return it
 	'''
-	#show_status (u'Refrashing date')
-	#global day_default
-	#global month_default
-	#global year_default
-	#global hour_default
-	#global minute_default
-	#global weekday_of_firstday
-	#global days_in_month
 	day_now = datetime.datetime.now().day
 	month_now = datetime.datetime.now().month
 	year_now = datetime.datetime.now().year
@@ -49,13 +42,15 @@ weekday_of_firstday, days_in_month = calendar.monthrange(year_default, month_def
 weekday_of_firstday, days_in_month = calendar.monthrange(year_default, month_default)
 month_name = {1:'Jan.', 2:'Feb.', 3:'Mar.', 4:'Apr.', 5:'May', 6:'Jun.', 7:'Jul.', 8:'Aug.', 9:'Sept.', 10:'Oct.', 11:'Nov.', 12:'Dec.'}
 #current_time = str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")
-
+show_done = True # set in True after start programe. It's make posible to start timer, which set show_done to False
 ###########################################################################################################    FUNCTIONS
 def create_db():
 	'''Function creates database Sqlite with name: 'reminders.db'  if it's absent in dirrectory with this program
 	'''
 	# TODO: 1. id must be automaticaly - Done
 	#		2. Another fields must be adding (rem for avryyear or no)!
+	#		3. Add seconds to db!
+	#		4. Add status-field of message into db: if shown, field = 1. if skip field=0
 	#show_status (u'Connect to database') # with this string we have Traceback (most recent call last): NameError: global name 'status' is not defined. WHY?
 	try:
 		con = sqlite3.connect('reminders.db')
@@ -79,9 +74,8 @@ def reminder_from_cl(len_args):
 	'''Function works with values wich had entered from comand line. You can don't use  this method, but use entering with GUI
 	'''
 	#TODO:	1. Use arguments with names ?!
-	show_status (u'Receive Reminder from Comand line')
+	#show_status (u'Receive Reminder from Comand line')
 	if len_args == 2:
-		#print len_args, 'i am hire'
 		new_reminder(text = sys.argv[1])
 	else:
 		try:
@@ -95,7 +89,7 @@ def new_reminder(text = 'New Year', year = year_default, month = month_default, 
 		TODO: 1.Use timedelta for writing data in db
 	'''
 	#require = 'INSERT INTO reminders VALUES(null,\"' + str(text) +'", ' +  str(year) +', '+ str(month) +', ' + str(day) + ', ' + str(hour) + ', ' + str(minutes)+ ')'#' + str(id) + ', "'
-	show_status (u'Adding New Reminder to db')
+	# show_status (u'Adding New Reminder to db')
 	t = (text, year, month, day, hour, minutes)
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
@@ -134,10 +128,10 @@ def show_rem(name = u'Test', data=u'Hier your info'):
 	# [           0,          1,        2,         3,           4]
 	# [textReminder, date_month, date_day, date_hour, date_minute]
 	show_status (u'Show info:' + name)
-	info = '\n'
+	info = '   All:' + str(len(data)) + ' reminders \n'
 	for i in data:
 		info += str(i[2]) + ' ' + month_name[i[1]] +'  at ' + str(i[3]) + ':' + str(i[4]) +'  => ' + str(i[0]) + '\n' 
-	info += '   All:' + str(len(data)) + ' reminders'
+	
 
 	showinfo(name, info)
 
@@ -145,6 +139,7 @@ def save_reminder(event):
 	'''Function works when user press to button 'Save' and reads text from the textfield and from the date-fields. 
 	If it isn't problem with entered data, call function new_reminder for saving to database
 	'''	
+	# TODO: 1. Must control new reminder, if it for today, must add it to rem_act (and) start new treading(!?)
 	show_status (u'Saving reminder')
 	control_env_fields(None)
 	new_reminder(text = unicode(tx.get('1.0', 'end')), year = ent_year.get(), month = ent_month.get(), day = ent_day.get(), hour = ent_hour.get(), minutes = ent_minute.get())
@@ -164,6 +159,7 @@ def error_input(obj, default_value = 1):
 def reminder_today(event):
 	'''Function shows all reminders for today
 	'''
+	global rem_actual
 	show_status (u'Finding Reminders for today')
 	# TODO: 1. Must show reminders in special window with comfort for reading form - DONE in function show_rem
 	day_now = refrash_date()[2]
@@ -172,11 +168,14 @@ def reminder_today(event):
 	#show_rem(name = u'All Reminders for Today', data = result)
 	if result:
 		res = next_autoshow_rem(result)
-		print 'NEXT reminder --------->', res[0]
-		print 'REM SKIPED  ----------->', res[1] 
-		print 'REM ACTUAL  ----------->', res[2]
-		if res[0]:
-			delta_seconds_to_show = seconds_to_show_reminder(res[0]) # call seconds_to_show_reminder, wich return the nomber of seconds to show reminder
+		if res[1]:
+			print 'NEXT reminder --------->', res[1][0]
+
+		print 'REM SKIPED  ----------->', res[0] 
+		print 'REM ACTUAL  ----------->', res[1]
+		if res[1]:
+			rem_actual = res[1]
+			delta_seconds_to_show = seconds_to_show_reminder(res[1][0]) # call seconds_to_show_reminder, wich return the nomber of seconds to show reminder
 			start_treading(delta_seconds_to_show)
 
 	else:
@@ -191,22 +190,22 @@ def rem_for_one_day(rem_day):
 	show_status (u'Finding Reminders for day - ' + unicode(rem_day))
 	res = []
 	res = find_actual_rem(data = res, day = rem_day )# = day_default)
-	print 'SEARCH IN DB reminders for day ',rem_day,'--->', res
+	print 'SEARCH IN DB reminders for day '#,rem_day,'--->', res
 	return res
 
 	
 def reminder_this_week(event):
-	'''Function shows all reminders for current week
+	'''Function shows all reminders for current current day to 7 next days
 	'''
 	res = []
 	count_day_in_last_month = 0
 	show_status (u'Finding Reminders for this week')
 	if (day_default + 7) <= days_in_month: 			# if all next week only in current month
-		print 'in reminder_this_week all day in this month'
+		#print 'in reminder_this_week all day in this month'
 		for day in range(day_default, day_default+7):
 			res =find_actual_rem(data = res, day=day, month = month_default)
 	else:
-		print 'in two monthes part 1'
+		#print 'in two monthes part 1'
 		res_part1 = []
 		res_part2 = []
 		for day in range(day_default, days_in_month+1):
@@ -222,7 +221,7 @@ def reminder_this_week(event):
 		for day in range(1, 7-count_day_in_last_month):
 			res_part2 = find_actual_rem(data = res_part2, day=day, month = month, year = year)
 		res = res_part1 + res_part2
-	print 'Rem-s for week =', len(res), res
+	#print 'Rem-s for week =', len(res), res
 	show_rem(name = u'All Reminders for week:', data = res )
 
 def reminder_this_month(event):
@@ -231,7 +230,7 @@ def reminder_this_month(event):
 	show_status (u'Finding Reminders for month')
 	res = []
 	for i in range(1, days_in_month+1):
-		print 'rem month',res
+		#print 'rem month',res
 		res =find_actual_rem(data = res, day = i, month = month_default, year = year_default)
 		#if rems:
 		#	res.append(rems)
@@ -251,11 +250,11 @@ def reminder_all(event):
 		print id_tuple
 		cur.execute('SELECT textReminder, date_month, date_day, date_hour, date_minute from reminders where id = ?', id_tuple)
 		data = cur.fetchone()
-		print 'all. step -', i, ' - ', data
+		#print 'all. step -', i, ' - ', data
 		if data:			# if reminder had cut from database, this func return None. I control data for solving problems 
 			res.append(data)
 	con.close()
-	print res
+	#print res
 	show_rem(name =u'All Reminders', data = res)
 
 def control_env_fields(event):
@@ -271,7 +270,7 @@ def control_env_fields(event):
 	     				(ent_hour, 0, 23, hour_default + 1),
 	      				(ent_minute, 0, 59, minute_default))
 	for field in all_entry_fields:
-		print field[0].get()
+		#print field[0].get()
 		try:
 			val = int(field[0].get())
 		except NameError:
@@ -321,7 +320,7 @@ def next_autoshow_rem(data):
 	if rem_actual_today:
 		next_rem = rem_actual_today[0]
 		show_rem(name = u'All actual Reminders for Today', data = rem_actual_today)
-		rem_actual_today.pop()
+		#rem_actual_today.pop()
 		
 		print 'timer'
 	else:
@@ -335,7 +334,8 @@ def next_autoshow_rem(data):
 		show_status (next_rem[0])
 	else:
 		show_status('No next reminder today')
-	return [next_rem, rem_skiped_today, rem_actual_today]
+	return [rem_skiped_today, rem_actual_today]
+	
 
 def show_status(message = u'treading'):
 	'''Function writes message in status window
@@ -345,6 +345,8 @@ def show_status(message = u'treading'):
 def seconds_to_show_reminder(next_rem):
 	'''Function counts how many seconds for show next reminder to screen
 	'''
+	#TODO: 1. Use seconds for counting delta_seconds! Maybe seconds must be used always, where we used minute, hour,
+	# 	... in db too!
 	# [           0,          1,        2,         3,           4]
 	# [textReminder, date_month, date_day, date_hour, date_minute]
 	now = refrash_date()
@@ -353,27 +355,47 @@ def seconds_to_show_reminder(next_rem):
 
 	if next_rem[4]>=minute_now:
 		delta_seconds = ((next_rem[3] - hour_now)*60*60) + ((next_rem[4] - minute_now)*60)
-		print '(', next_rem[3], '-', hour_now,') *3600 +', next_rem[4], '-', minute_now,'+60 ===', delta_seconds 
+		print '(', next_rem[3], '-', hour_now,') *3600 + (', next_rem[4], '-', minute_now,')*60 ===', delta_seconds 
 	else:
 		delta_seconds = ((next_rem[3] - hour_now)*60*60) - ((minute_now - next_rem[4])*60)
-		print delta_seconds
+		print '(', next_rem[3], '-', hour_now,') *3600 - (', minute_now, '-', next_rem[4],')*60 ===', delta_seconds
 	return delta_seconds
 
 def show_message_treading():
 	'''Function writes message in status window
 	'''
 	#status['text'] = 'Last operation: treading'
-	print 'IT IS TIME TO DO: ', str(text_next_message)
+	print 'IT IS TIME TO DO: ', str(rem_actual[0][0])
 	#rem_today(None) # message was written, find next message for today
 	global show_done
 	show_done = True
+	print strftime("[%H:%M:%S]", gmtime()) + " show_done = ", show_done
+	#print 'rem_actual was reduced until .pop() -->', rem_actual
+	del rem_actual[0]
+	print 'rem_actual was reduced with del -->', rem_actual
+	if rem_actual:
+		print 'in show_message_treading - call start_treading/ send -', rem_actual[0]
+		delta_seconds_to_show = seconds_to_show_reminder(rem_actual[0]) # call seconds_to_show_reminder, wich return the nomber of seconds to show reminder
+		start_treading(delta_seconds_to_show)
+
 	
 
 def start_treading(delta_seconds):
 	'''TREADING FUNCTION - counts delta_seconds and then show Text of Reminder on screen
 	'''
-	timer = threading.Timer(delta_seconds, show_message_treading)
-	timer.start()
+	global show_done
+	print 'calling start_treading: show_done = ', show_done
+
+	if show_done == True:
+		timer = threading.Timer(delta_seconds, show_message_treading)
+		timer.start()
+		
+		#print 'IN start_treading text glboal lists. Old:    ', rem_old 
+		print 'IN start_treading text glboal lists. Actual: ', rem_actual
+		show_done = False
+		print strftime("[%H:%M:%S]", gmtime()) + " Start \n show_done = ", show_done
+	else:
+		print strftime("[%H:%M:%S]", gmtime()) + " NOT START"
 	
 
 
@@ -383,10 +405,12 @@ create_db()
 #print sqlite3.version # currant version sqlite3
 #print datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p") # servicing info
 #status_first = str(sqlite3.version) + '\n' + str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p"))
-# You can input your reminder in command line with format (after filename must be 6 arguments!):
-# ...$ python rem_me.py 'MESSAGE' YEAR MONTH DAY HOUR MIN
 print refrash_date()
 print day_default, ' From refrash_date function'
+
+# You can input your reminder in command line with format (after filename must be 6 arguments!):
+# ...$ python rem_me.py 'MESSAGE' YEAR MONTH DAY HOUR MIN
+
 if len(sys.argv)>1:
 	reminder_from_cl(len(sys.argv))
 
@@ -486,18 +510,25 @@ status = Label(fra, text = 'Starting: '+ str(counter()) +' Reminders in DB \n No
 	+ str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")), font = 'Verdana 8', justify = 'left', bg = 'white')
 status.grid(row = 0, column = 0)
 
-
+#rem_actual = [['No actual remiders for today']]
+#rem_old = [['NO old reminders for today']]
 rem_today = reminder_today(None)
-rem_actual = rem_today[0]
-print rem_actual
+#if rem_today[1]:
+#	rem_actual = rem_today[1]
+
+#if rem_today[0]:
+#	rem_old = rem_today[0]
+#print 'rem today in main prog ',rem_today
+#print 'rem today actual in main prog ', rem_actual
+#print 'rem today old main prog ', rem_old
 
 #while rem_actual:
 #	show_done = False
-if rem_actual[0]:
-	text_next_message = rem_actual[0][0]
-else:
-	text_next_message = ' empty'
-print text_next_message
+#if rem_actual[0]:
+#	text_next_message = rem_actual[0][0]
+#else:
+#	text_next_message = ' empty'
+#print text_next_message
 	#delta_seconds_to_show = seconds_to_show_reminder(rem_today[2][0])
 	#start_treading(delta_seconds_to_show)
 	
