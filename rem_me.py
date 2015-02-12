@@ -68,6 +68,7 @@ def create_db():
 	 		 date_minute INTEGER,
 	 		 date_second INTEGER,
 	 		 type_reminder VARCHAR(50) not null,
+	 		 timestamp not null,
 				unique (textReminder))''')
 		con.commit()
 		new_reminder(type_reminder = u'evry year')
@@ -95,16 +96,29 @@ def new_reminder(text = 'New Year', year = year_default, month = month_default, 
 		TODO: 1.Use timedelta for writing data in db
 	'''
 	# show_status (u'Adding New Reminder to db')			# - not work?
-	t = (text, year, month, day, hour, minutes, second, type_reminder)
+	time_creating = str(refrash_date()) # for wrighting creating time reminder
+	print type(hour), type(day)
+	if int(hour) > 23: # this is control error in time (24 hour, 32 day, 13 month)
+		hour = 0
+		day = int(day) + 1
+		if day > days_in_month:
+			day = 1
+			month = int(month) + 1
+			if month > 12:
+				month = 1
+				year = int(year) + 1
+
+	t = (text, year, month, day, hour, minutes, second, type_reminder, time_creating) 
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
 	try:
-		cur.execute('INSERT INTO reminders VALUES(null, ?, ?, ?, ?, ?, ?, ?, ?)', t)
+		cur.execute('INSERT INTO reminders VALUES(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)', t)
 		con.commit()
 	except sqlite3.IntegrityError:
-		print 'This value has been entered into database before!'
-	con.close()
-	return t
+		print 'This value has been entered into database before or some problems with writting!'
+	finally:
+		con.close()
+	return (text, year, month, day, hour, minutes, second, type_reminder)
 
 def find_actual_rem( data, year = year_default, month = month_default, day = day_default):
 	'''Function controls date_ fields in all tables and find actualy reminders for current day
@@ -126,7 +140,7 @@ def find_actual_rem( data, year = year_default, month = month_default, day = day
 	con.close()
 	return data
 
-def show_rem(name = u'Test', data=u'Hier your info'):
+def show_rem(name = u'Test', data=u'Here your info'):
 	'''Function recieves  reminders  wich user require with button  and show it in standart window
 	'''
 	#TODO:	1. Func must show any list with data in right for reading form - DONE.
@@ -433,11 +447,22 @@ def reminder_window(rem):
 	# TODO:		1. Maybe window must have to button:
 	#				1) 'OK' 				-  reminder was written and must be change rem_actual[0][6]
 	#				2) 'Remind me later'  	-	reminder will be show again by 5 min. (for example)
+	#			2. Work space for text must be lower - as size of win!
 	color = random.choice(['lightblue', 'lightgreen', 'pink', 'red', 'yellow', 'gold', 'blue'])
 	win = Toplevel(root, relief = SUNKEN, bd=10, bg = color)
 	win.title(str(rem[3]) + ':' + str(rem[4]) + ' REMINDER for NOW')
 	win.minsize(width = 250, height = 250)
-	mes = Label(win, font = 'Arial 18', bg = color, text = (str(rem[0]) + '\n'*2 + '\t' + str(rem[3]) + ':' + str(rem[4])))
+	win.maxsize(width = 250, height = 250)
+	
+	if len(str(rem[3]))==1:
+		HHMM = '0'+ str(rem[3])
+	else:
+		HHMM = str(rem[3])
+	if len(str(rem[4]))==1:
+		HHMM = HHMM +':0'+ str(rem[4])
+	else:
+		HHMM = HHMM +':'+ str(rem[4])
+	mes = Label(win, font = 'Arial 18', bg = color, text = (HHMM +'\n' + '*'*24 + '\n' + str(rem[0]) + '\n'*2 + '*'*25))
 	mes.pack()
 		
 def start_treading(delta_seconds):
@@ -475,92 +500,92 @@ if len(sys.argv)>1:
 # TODO:		1. Cozy design of window !!!!	
 root = Tk()
 root.title(' My reminders')
-root.minsize(height = 400, width = 620) # Min size of main window
-root.maxsize(height = 400, width = 620) # Max size of main window
+root.minsize(height = 300, width = 550) # Min size of main window
+root.maxsize(height = 300, width = 550) # Max size of main window
 
 lab = Label(root, text = 'Write your reminder here:', font = 'Verdana 12')
-lab.grid(row = 0, column = 0)
+lab.grid(row = 0, column = 0, columnspan = 4)
 
 tx = Text(root, height = 6, width = 25, bg = 'lightgreen', font = "Verdana 14",	wrap = WORD) # textfield
-tx.grid(row = 1, column = 0, sticky='nsew')
+tx.grid(row = 1, column = 0, sticky='nsew', rowspan = 5, columnspan = 4, padx = 3, pady = 3)
 
-lab = Label(root, text = 'Write date:', font = 'Verdana 12')
-lab.grid(row = 0, column = 1)
+lab = Label(root, text = 'Select date:', font = 'Verdana 12')
+lab.grid(row = 0, column = 4, columnspan = 2)
 
 lab = Label(root, text = 'Year:', font = 'Verdana 10')
-lab.grid(row = 2, column = 1)
+lab.grid(row = 1, column = 4)
 
-w = Canvas(root, width = 220, height = 150)
-w.create_line(0, 150, 220, 0, fill="red", dash=(4, 4))
-w.create_text(22,12, text = 'HARM')
-w.create_window(30,40) 									# not work!!!!
-w.grid(row = 1, column = 1, columnspan = 2)
+#w = Canvas(root, width = 220, height = 150)
+#w.create_line(0, 150, 220, 0, fill="red", dash=(4, 4))
+#w.create_text(22,12, text = 'HARM')
+#w.create_window(30,40) 									# not work!!!!
+#w.grid(row = 1, column = 1, columnspan = 2)
 
 ent_year = Entry(root, width = 4, bd = 2, bg = 'white')
 ent_year.insert(0, year_default)
-ent_year.grid(row = 2, column = 2)
+ent_year.grid(row = 1, column = 5)
 
 lab = Label(root, text = 'Month:', font = 'Verdana 10')
-lab.grid(row = 3, column = 1)
+lab.grid(row = 2, column = 4)
 
 ent_month = Entry(root, width = 4, bd = 2)
 ent_month.insert(0, month_default)
-ent_month.grid(row = 3, column = 2)
+ent_month.grid(row = 2, column = 5)
 
 lab = Label(root, text = 'Day:', font = 'Verdana 10')
-lab.grid(row = 4, column = 1)
+lab.grid(row = 3, column = 4)
 
 ent_day = Entry(root, width = 4, bd = 2)
 ent_day.insert(0, day_default)
-ent_day.grid(row = 4, column = 2)
+ent_day.grid(row = 3, column = 5)
 
 lab = Label(root, text = 'Hour:', font = 'Verdana 10')
-lab.grid(row = 5, column = 1)
+lab.grid(row = 4, column = 4)
 
 ent_hour = Entry(root, width = 4, bd = 2)
 ent_hour.insert(0, hour_default+1)
-ent_hour.grid(row = 5, column = 2)
+ent_hour.grid(row = 4, column = 5)
 
 lab = Label(root, text = 'Minutes:', font = 'Verdana 10')
-lab.grid(row = 6, column = 1)
+lab.grid(row = 5, column = 4)
 
 ent_minute = Entry(root, width = 4, bd = 2)
 ent_minute.insert(0, minute_default)
-ent_minute.grid(row = 6, column = 2)
+ent_minute.grid(row = 5, column = 5)
 
 ##### BUTTONS #####
-but1 = Button(root, height = 1, width = 20, font = 'Verdana 20', bg = 'gold', activebackground = 'green')
+but1 = Button(root, height = 1, width = 24, font = 'Verdana 18', bg = 'yellow', activebackground = 'green')
 but1['text'] = "Save"
 but1.bind('<Button-1>', save_reminder)
-but1.grid(row = 2,  column = 0)
+but1.grid(row = 6,  column = 0, columnspan = 4)
 
-but2 = Button(root)
+but2 = Button(root, height = 1, width = 10, font = 'Verdana 8', bg = 'lightblue', activebackground = 'green')
 but2['text'] = "Rem for day"
 but2.bind('<Button-1>', reminder_today)
-but2.grid(row = 7,  column = 0)
+but2.grid(row = 8,  column = 0)
 
-but3 = Button(root)
+but3 = Button(root, height = 1, width = 10, font = 'Verdana 8', bg = 'lightblue', activebackground = 'green')
 but3['text'] = "Rem for week"
 but3.bind('<Button-1>', reminder_this_week)
-but3.grid(row = 7,  column = 1)
+but3.grid(row = 8,  column = 1)
 
-but4 = Button(root)
+but4 = Button(root, height = 1, width = 10, font = 'Verdana 8', bg = 'lightblue', activebackground = 'green')
 but4['text'] = "Rem for month"
 but4.bind('<Button-1>', reminder_this_month)
-but4.grid(row = 7,  column = 2)
+but4.grid(row = 8,  column = 2)
 
 #but5 = Button(root)
 #but5['text'] = "Cntrl fields"
 #but5.bind('<Button-1>', control_env_fields)
 #but5.grid(row = 8,  column = 0)
 
-but6 = Button(root)
+but6 = Button(root, height = 1, width = 10, font = 'Verdana 8', bg = 'lightblue', activebackground = 'green')
 but6['text'] = "Rem ALL"
 but6.bind('<Button-1>', reminder_all)
-but6.grid(row = 8,  column = 1)
+but6.grid(row = 8,  column = 3)
 
 fra = Frame(root, height = 25, width = 400, bg = 'white') # as status window in the bootom of window
-fra.grid(row = 9, column = 0)
+fra.grid(row = 9, column = 0, columnspan = 7)
 status = Label(fra, text = 'Starting: '+ str(counter()) +' Reminders in DB \n Now: '
 	+ str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")), font = 'Verdana 8', justify = 'left', bg = 'white')
 status.grid(row = 0, column = 0)
