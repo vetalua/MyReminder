@@ -50,7 +50,7 @@ rem_actual = [] # reminders wich must be shown today, after start it is empty li
 def create_db():
 	'''Function creates database Sqlite3 with name: 'reminders.db'  if it's absent in dirrectory with this program
 	'''
-	# TODO: 1. id must be automaticaly 									- Done
+	# TODO: 1. id must be automaticaly 									- DONE
 	#		2. Another fields must be adding (rem for avryyear or no)!  - DONE
 	#		3. Add seconds to db!  										- DONE
 	#		4. Add status-field of message into db: if shown, field = 1. if skip field=0  - rem_actual[7]
@@ -81,32 +81,25 @@ def reminder_from_cl(len_args):
 	'''Function works with values wich had entered from comand line. You can don't use  this method, but use entering with GUI
 	'''
 	#TODO:	1. Use arguments with names 					- DONE
-	#show_status (u'Receive Reminder from Comand line')		- ?
+	#		2. Every year reminder can be entered only with comand line. Make a button for select 'YEARLY' or 'ONE TIME'
+	#show_status (u'Receive Reminder from Comand line') - don't work
 	if len_args == 2:
 		new_reminder(text = sys.argv[1])
 	else:
 		try:
-			new_reminder(text = sys.argv[1], year = sys.argv[2], month = sys.argv[3], day = sys.argv[4], hour = sys.argv[5], minutes = sys.argv[6])
+			new_reminder(text = sys.argv[1], year = sys.argv[2], month = sys.argv[3], day = sys.argv[4], hour = sys.argv[5], minutes = sys.argv[6], type_reminder = u'YEARLY')
 		except IndexError:
 			print 'You must input 6 arguments for entering with comand line!'	
 
-def new_reminder(text = 'New Year', year = year_default, month = month_default, day = day_default, hour = hour_default + 1, minutes = minute_default, second = 0, type_reminder = u'ONE to future'):
+def new_reminder(text = 'New Year', year = year_default, month = month_default, day = day_default, hour = hour_default + 1, minutes = minute_default, second = 0, type_reminder = u'ONE TIME'):
 	'''Function controls text of new reminder: if text not new - write it in new message in window,
 		if new reminder - write it to database (other fields must be full with information, defaults values are current time + 1 hour )
-		TODO: 1.Use timedelta for writing data in db
-	'''
-	# show_status (u'Adding New Reminder to db')			# - not work?
+	'''	
+	#	TODO: 	1.Use timedelta for writing data in db 			- DONE
+	#			2. Must do update field type_reminder, for signal about appearing reminder or about skip ot in last
+	#			3. For every year reminder after appearing must be change year in db (year = year + 1)
+	#show_status (u'Adding New Reminder to db')			# - not work?
 	time_creating = str(refrash_date()) # for wrighting creating time reminder
-	print type(hour), type(day)
-	if int(hour) > 23: # this is control error in time (24 hour, 32 day, 13 month)
-		hour = 0
-		day = int(day) + 1
-		if day > days_in_month:
-			day = 1
-			month = int(month) + 1
-			if month > 12:
-				month = 1
-				year = int(year) + 1
 
 	t = (text, year, month, day, hour, minutes, second, type_reminder, time_creating) 
 	con = sqlite3.connect('reminders.db')
@@ -115,7 +108,7 @@ def new_reminder(text = 'New Year', year = year_default, month = month_default, 
 		cur.execute('INSERT INTO reminders VALUES(null, ?, ?, ?, ?, ?, ?, ?, ?, ?)', t)
 		con.commit()
 	except sqlite3.IntegrityError:
-		print 'This value has been entered into database before or some problems with writting!'
+		print 'This value has been entered into database before or some other problems with writting!'
 	finally:
 		con.close()
 	return (text, year, month, day, hour, minutes, second, type_reminder)
@@ -163,6 +156,7 @@ def save_reminder(event):
 	'''	
 	# TODO: 1. Must control new reminder, if it for today, 
 	# 			must add it to rem_act (and) start new treading if it first in list - DONE
+	#		2. See comment in 176 string!!!                                         - DONE
 	#global rem_actual
 	show_status (u'Saving reminder')
 	control_env_fields(None)
@@ -170,11 +164,12 @@ def save_reminder(event):
 	t = new_reminder(text = unicode(tx.get('1.0', 'end')), year = ent_year.get(), month = ent_month.get(), day = ent_day.get(), hour = ent_hour.get(), minutes = ent_minute.get(), second = second_rand)
 	newest_rem = list(t)
 	print 'in save_reminder, rem_actual:', rem_actual
-	for i in range(1,6):
+	for i in range(1,6): # HERE SOME BUG: If reminder is not for today - it put in only to DB, but not to rem_actual list!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		newest_rem[i] = int(newest_rem[i])	# from string to integer
 	insert_newest_rem(newest_rem)
-	delta_seconds_to_show = seconds_to_show_reminder(rem_actual[0]) # call seconds_to_show_reminder, which return the number of seconds to show reminder
-	start_treading(delta_seconds_to_show)
+	if rem_actual:
+		delta_seconds_to_show = seconds_to_show_reminder(rem_actual[0]) # call seconds_to_show_reminder, which return the number of seconds to show reminder
+		start_treading(delta_seconds_to_show)
 
 def insert_newest_rem(newest_rem):
 	'''Function insert new reminder to list actual_rem on it place, ordered by time
@@ -189,6 +184,7 @@ def insert_newest_rem(newest_rem):
 	#print newest_rem
 	#print newest_rem[2], '== ', now[1], ' and ', newest_rem[3], ' == ', now[2], ' type newest_rem -', type(newest_rem[3]), ' type now -', type(now[2])
 	if newest_rem[1] == now[0] and newest_rem[2] == now[1] and newest_rem[3] == now[2]	: # control year, month and day of newest_reminder
+		show_status(u'Insert new reminder into rem_actual')
 		print newest_rem[4], ' >= ', now[3], ' and ', newest_rem[5],' > ', now[4]
 		del newest_rem[1]
 		newest_rem.append(True) # new_rem must have status True for starting in treading
@@ -206,6 +202,7 @@ def find_place_index(newest_rem):
 	'''Returns num, whish equal to index for insert new reminder into rem_actual
 	'''
 	num = 0
+	show_status (u'Finding index for insert')
 	print 'find_place_index was started rem_actual = ', rem_actual
 	if rem_actual !=[]:
 		for i in rem_actual:
@@ -227,7 +224,7 @@ def error_input(obj, default_value = 1):
 	obj ['bg'] = 'pink'
 	return res
 
-def reminder_today(event):
+def reminder_today(event, window_show = True, window_skiped = True):
 	'''Function shows all reminders for today
 	'''
 	global rem_actual
@@ -236,17 +233,22 @@ def reminder_today(event):
 	result = rem_for_one_day(day_now)
 	if result:
 		res = next_autoshow_rem(result)
-		print 'REM SKIPED  ----------->', res[0] 
-		print 'REM ACTUAL  ----------->', res[1]
+		print 'REM SKIPED  ----------->', len(res[0])
+		print 'REM ACTUAL  ----------->', len(res[1]), '\n', res[1]
 		if res[1]:
 			print 'NEXT reminder --------->', res[1][0]
 			if rem_actual == []:
 				rem_actual = res[1]
 				delta_seconds_to_show = seconds_to_show_reminder(res[1][0]) # call seconds_to_show_reminder, wich return the nomber of seconds to show reminder
 				start_treading(delta_seconds_to_show)
+		if window_show:
+			show_rem(name = u'All actual Reminders for Today', data = rem_actual) # window with result will show only if window_show=True
 	else:
 		res = None
-		show_rem(name = u'All actual Reminders for Today', data = [])
+		if window_show:
+			show_rem(name = u'All actual Reminders for Today', data = [])
+	if res[0] and window_skiped:
+			show_rem(name = u'All SKIPED Reminders for Today', data = res[0]) # For show skipped reminders (only if it is in list res[0])
 	return res
 	
 
@@ -307,7 +309,7 @@ def reminder_all(event):
 	max_id = counter()
 	for i in range(1, max_id+1):
 		id_tuple = i,
-		print id_tuple
+		#print id_tuple
 		cur.execute('SELECT textReminder, date_month, date_day, date_hour, date_minute, date_second, type_reminder from reminders where id = ?', id_tuple)
 		data = cur.fetchone()
 		if data:			# if reminder had cut from database, this func return None. I control data for solving problems 
@@ -320,7 +322,7 @@ def control_env_fields(event):
 	'''
 	# TODO:	1. Make determination of curren weekday and find all remainders for this week in bd. - I am not sure that must do now
 	#		2. Reminders for future and today must be signed with green color, for last - red!
-	#show_status (u'Controll values in date-fields')
+	show_status (u'Controll values in date-fields')
 	month = ent_month.get()
 	now = refrash_date() 
 	# (       0,         1,       2,        3,          4,          5)
@@ -385,7 +387,6 @@ def next_autoshow_rem(data):
 			rem_actual_today.append(rem_list)
 	if rem_actual_today:
 		next_rem = rem_actual_today[0]
-		show_rem(name = u'All actual Reminders for Today', data = rem_actual_today)
 		print 'We have actual reminders today'
 	else:
 		next_rem = None
@@ -444,6 +445,45 @@ def show_message_treading():
 def reminder_window(rem):
 	'''Show bright window with text of reminder
 	'''
+	def ok_func(event):
+		# TODO: must chagne field type_reminder in db (for ONE to future) or make increment to field date_year (for every year)
+		if rem[6] == u'ONE TIME':
+			t = (u'DONE', datetime.datetime.now().year, rem[0], rem[1], rem[2])
+		else:
+			t = (rem[6], datetime.datetime.now().year +1, rem[0], rem[1], rem[2])
+		print 'UPDATing with t =', t 
+		try:
+			con = sqlite3.connect('reminders.db')
+			cur = con.cursor()
+			cur.execute('UPDATE reminders SET type_reminder=?, date_year = ? WHERE textReminder=? AND date_month=? AND date_day=?', t)
+			con.commit()
+			print 'COMMIT'
+		except sqlite3.IntegrityError:
+			print 'This value has been entered into database before or some other problems with writting!'
+		finally:
+			if con:
+				con.close()
+		win.destroy()
+	def add_5min(event):
+		# TODO: must chagne field type_reminder in db (for ONE to future) or make increment to field date_year (for every year)
+		
+		time_new = datetime.datetime.now() + datetime.timedelta(seconds = 100)
+		timetuple =time_new.year, time_new.month, time_new.day, time_new.hour, time_new.minute, rem[0]
+		try:
+			con = sqlite3.connect('reminders.db')
+			cur = con.cursor()
+			print 'start UPDATING'
+			cur.execute('UPDATE reminders SET date_year=?, date_month=?, date_day=?, date_hour=?, date_minute=? WHERE textReminder=?', timetuple)
+			con.commit()
+			print 'COMMIT'
+		except sqlite3.IntegrityError:
+			print 'This value has been entered into database before or some other problems with writting!'
+		finally:
+			if con:
+				con.close()
+		reminder_today(None, window_show = False, window_skiped = False)
+		win.destroy()
+
 	# TODO:		1. Maybe window must have to button:
 	#				1) 'OK' 				-  reminder was written and must be change rem_actual[0][6]
 	#				2) 'Remind me later'  	-	reminder will be show again by 5 min. (for example)
@@ -452,7 +492,7 @@ def reminder_window(rem):
 	win = Toplevel(root, relief = SUNKEN, bd=10, bg = color)
 	win.title(str(rem[3]) + ':' + str(rem[4]) + ' REMINDER for NOW')
 	win.minsize(width = 250, height = 250)
-	win.maxsize(width = 250, height = 250)
+	#win.maxsize(width = 250, height = 250)
 	
 	if len(str(rem[3]))==1:
 		HHMM = '0'+ str(rem[3])
@@ -464,6 +504,13 @@ def reminder_window(rem):
 		HHMM = HHMM +':'+ str(rem[4])
 	mes = Label(win, font = 'Arial 18', bg = color, text = (HHMM +'\n' + '*'*24 + '\n' + str(rem[0]) + '\n'*2 + '*'*25))
 	mes.pack()
+	butOK = Button(win, text = 'OK')
+	butOK.pack()
+	butOK.bind('<Button-1>', ok_func)
+	but5min = Button(win, text = '+5 min')
+	but5min.pack()
+	but5min.bind('<Button-1>', add_5min)
+	
 		
 def start_treading(delta_seconds):
 	'''TREADING FUNCTION - counts delta_seconds and then show Text of Reminder on screen
@@ -480,6 +527,30 @@ def start_treading(delta_seconds):
 		print strftime("[%H:%M:%S]", gmtime()) + " Start \n show_done = ", show_done
 	else:
 		print strftime("[%H:%M:%S]", gmtime()) + " NOT START"
+
+def next_day_control():
+	''' Function controles default time for reminder and if it is 23 hour - show 0 hour of next day
+	'''
+	if hour_default >= 23: 				# this is control error in time (24 hour, 32 day, 13 month).It error was able bicose hour = hour_default +1
+		hour_default_entry = 0
+		day_default_entry = day_default + 1
+		if day_default_entry > days_in_month:
+			day_default_entry = 1
+			month_default_entry = month_default + 1
+		else:
+			month_default_entry = month_default
+		if month_default_entry > 12:
+			month_default_entry = 1
+			year_default_entry = year_default + 1
+		else:
+			year_default_entry = year_default
+	else:
+		hour_default_entry = hour_default + 1
+		day_default_entry = day_default
+		month_default_entry = month_default
+		year_default_entry = year_default
+	print 'Result next_day_control: ', hour_default_entry, day_default_entry, month_default_entry, year_default_entry
+	return (hour_default_entry, day_default_entry, month_default_entry, year_default_entry)
 
 ########################################################################################################################
 
@@ -521,29 +592,31 @@ lab.grid(row = 1, column = 4)
 #w.create_window(30,40) 									# not work!!!!
 #w.grid(row = 1, column = 1, columnspan = 2)
 
+hour_default_entry, day_default_entry, month_default_entry, year_default_entry = next_day_control()
+
 ent_year = Entry(root, width = 4, bd = 2, bg = 'white')
-ent_year.insert(0, year_default)
+ent_year.insert(0, year_default_entry)
 ent_year.grid(row = 1, column = 5)
 
 lab = Label(root, text = 'Month:', font = 'Verdana 10')
 lab.grid(row = 2, column = 4)
 
 ent_month = Entry(root, width = 4, bd = 2)
-ent_month.insert(0, month_default)
+ent_month.insert(0, month_default_entry)
 ent_month.grid(row = 2, column = 5)
 
 lab = Label(root, text = 'Day:', font = 'Verdana 10')
 lab.grid(row = 3, column = 4)
 
 ent_day = Entry(root, width = 4, bd = 2)
-ent_day.insert(0, day_default)
+ent_day.insert(0, day_default_entry)
 ent_day.grid(row = 3, column = 5)
 
 lab = Label(root, text = 'Hour:', font = 'Verdana 10')
 lab.grid(row = 4, column = 4)
 
 ent_hour = Entry(root, width = 4, bd = 2)
-ent_hour.insert(0, hour_default+1)
+ent_hour.insert(0, hour_default_entry)
 ent_hour.grid(row = 4, column = 5)
 
 lab = Label(root, text = 'Minutes:', font = 'Verdana 10')
@@ -590,7 +663,7 @@ status = Label(fra, text = 'Starting: '+ str(counter()) +' Reminders in DB \n No
 	+ str(datetime.datetime.now().strftime("%d.%m.%Y.%I.%M.%p")), font = 'Verdana 8', justify = 'left', bg = 'white')
 status.grid(row = 0, column = 0)
 
-reminder_today(None)
+reminder_today(None, window_show = False)
 
 print 'There is:', counter(), 'records in database'
 root.mainloop()
