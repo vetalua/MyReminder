@@ -43,8 +43,12 @@ minute_default = datetime.datetime.now().minute
 weekday_of_firstday, days_in_month = calendar.monthrange(year_default, month_default)
 weekday_of_firstday, days_in_month = calendar.monthrange(year_default, month_default)
 month_name = {1:'Jan.', 2:'Feb.', 3:'Mar.', 4:'Apr.', 5:'May', 6:'Jun.', 7:'Jul.', 8:'Aug.', 9:'Sept.', 10:'Oct.', 11:'Nov.', 12:'Dec.'}
-show_done = True # set in True after start programe. It's make posible don't start timer, if set show_done to False or status(rem_actual[7]) to False
+show_done = True 
+# Set show_done = True after start programe. It's make posible don't start timer,
+# if set show_done to False or status(rem_actual[7]) to False
+
 rem_actual = [] # reminders wich must be shown today, after start it is empty list
+
 ###########################################################################################################    FUNCTIONS
 
 def create_db():
@@ -99,6 +103,7 @@ def new_reminder(text = 'New Year', year = year_default, month = month_default, 
 	#			2. Must do update field type_reminder, for signal about appearing reminder or about skip ot in last
 	#			3. For every year reminder after appearing must be change year in db (year = year + 1)
 	#show_status (u'Adding New Reminder to db')			# - not work?
+	
 	time_creating = str(refrash_date()) # for wrighting creating time reminder
 
 	t = (text, year, month, day, hour, minutes, second, type_reminder, time_creating) 
@@ -163,6 +168,7 @@ def save_reminder(event):
 	second_rand = random.randint(0, 59)
 	t = new_reminder(text = unicode(tx.get('1.0', 'end')), year = ent_year.get(), month = ent_month.get(), day = ent_day.get(), hour = ent_hour.get(), minutes = ent_minute.get(), second = second_rand)
 	newest_rem = list(t)
+	tx.delete('1.0', 'end')
 	print 'in save_reminder, rem_actual:', rem_actual
 	for i in range(1,6): # HERE SOME BUG: If reminder is not for today - it put in only to DB, but not to rem_actual list!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		newest_rem[i] = int(newest_rem[i])	# from string to integer
@@ -243,12 +249,16 @@ def reminder_today(event, window_show = True, window_skiped = True):
 				start_treading(delta_seconds_to_show)
 		if window_show:
 			show_rem(name = u'All actual Reminders for Today', data = rem_actual) # window with result will show only if window_show=True
+		if res[0] and window_skiped:
+			for rem in res[0]:
+				if rem[6] != u'DONE':
+					reminder_window(rem)
+			#show_rem(name = u'All SKIPED Reminders for Today', data = res[0]) # For show skipped reminders (only if it is in list res[0])	
 	else:
 		res = None
 		if window_show:
 			show_rem(name = u'All actual Reminders for Today', data = [])
-	if res[0] and window_skiped:
-			show_rem(name = u'All SKIPED Reminders for Today', data = res[0]) # For show skipped reminders (only if it is in list res[0])
+	
 	return res
 	
 
@@ -467,12 +477,11 @@ def reminder_window(rem):
 	def add_5min(event):
 		# TODO: must chagne field type_reminder in db (for ONE to future) or make increment to field date_year (for every year)
 		
-		time_new = datetime.datetime.now() + datetime.timedelta(seconds = 100)
+		time_new = datetime.datetime.now() + datetime.timedelta(seconds = 300)
 		timetuple =time_new.year, time_new.month, time_new.day, time_new.hour, time_new.minute, rem[0]
 		try:
 			con = sqlite3.connect('reminders.db')
 			cur = con.cursor()
-			print 'start UPDATING'
 			cur.execute('UPDATE reminders SET date_year=?, date_month=?, date_day=?, date_hour=?, date_minute=? WHERE textReminder=?', timetuple)
 			con.commit()
 			print 'COMMIT'
@@ -483,6 +492,23 @@ def reminder_window(rem):
 				con.close()
 		reminder_today(None, window_show = False, window_skiped = False)
 		win.destroy()
+
+	def del_func(event):
+		data_del_reminder = rem[0], rem[1], rem[2]
+		try:
+			con = sqlite3.connect('reminders.db')
+			cur = con.cursor()
+			print 'start Delete'
+			cur.execute('DELETE from reminders WHERE textReminder=? AND date_month=? AND date_day=?', data_del_reminder)
+			con.commit()
+			print 'COMMIT'
+		except sqlite3.IntegrityError:
+			print 'Operation called exception!'
+		finally:
+			if con:
+				con.close()
+		reminder_today(None, window_show = False, window_skiped = False)
+		win.destroy()		
 
 	# TODO:		1. Maybe window must have to button:
 	#				1) 'OK' 				-  reminder was written and must be change rem_actual[0][6]
@@ -510,6 +536,9 @@ def reminder_window(rem):
 	but5min = Button(win, text = '+5 min')
 	but5min.pack()
 	but5min.bind('<Button-1>', add_5min)
+	but_del = Button(win, text = 'DEL')
+	but_del.pack()
+	but_del.bind('<Button-1>', del_func)
 	
 		
 def start_treading(delta_seconds):
