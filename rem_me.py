@@ -77,9 +77,11 @@ def create_db():
 		con.commit()
 		new_reminder(type_reminder = u'evry year')
 		print 'Creating db had done'
-		con.close()
 	except sqlite3.OperationalError:
 		print 'reminders.db had made before'
+	finally:
+		if con:
+			con.close()
 
 def reminder_from_cl(len_args):
 	'''Function works with values wich had entered from comand line. You can don't use  this method, but use entering with GUI
@@ -105,7 +107,9 @@ def new_reminder(text = 'New Year', year = year_default, month = month_default, 
 	#show_status (u'Adding New Reminder to db')			# - not work?
 	
 	time_creating = str(refrash_date()) # for wrighting creating time reminder
-
+	v = c1.get()
+	if v ==1:
+		type_reminder = 'YEARLY'  # For every yeary reminders. Work if set Checkbutton che1
 	t = (text, year, month, day, hour, minutes, second, type_reminder, time_creating) 
 	con = sqlite3.connect('reminders.db')
 	cur = con.cursor()
@@ -256,8 +260,10 @@ def reminder_today(event, window_show = True, window_skiped = True):
 			#show_rem(name = u'All SKIPED Reminders for Today', data = res[0]) # For show skipped reminders (only if it is in list res[0])	
 	else:
 		res = None
+		# maybe here must be add a reminder at 0:00 next day
 		if window_show:
 			show_rem(name = u'All actual Reminders for Today', data = [])
+
 	
 	return res
 	
@@ -456,7 +462,8 @@ def reminder_window(rem):
 	'''Show bright window with text of reminder
 	'''
 	def ok_func(event):
-		# TODO: must chagne field type_reminder in db (for ONE to future) or make increment to field date_year (for every year)
+		'''Start after click on button OK in reminder window: change type reminder (ONE -> DONE) or update rem in DB (+1 year) 
+		'''
 		if rem[6] == u'ONE TIME':
 			t = (u'DONE', datetime.datetime.now().year, rem[0], rem[1], rem[2])
 		else:
@@ -474,9 +481,10 @@ def reminder_window(rem):
 			if con:
 				con.close()
 		win.destroy()
+	
 	def add_5min(event):
-		# TODO: must chagne field type_reminder in db (for ONE to future) or make increment to field date_year (for every year)
-		
+		'''Start after click on button +5 min in reminder window: change date reminder in DB (+5 min) 
+		'''
 		time_new = datetime.datetime.now() + datetime.timedelta(seconds = 300)
 		timetuple =time_new.year, time_new.month, time_new.day, time_new.hour, time_new.minute, rem[0]
 		try:
@@ -494,6 +502,8 @@ def reminder_window(rem):
 		win.destroy()
 
 	def del_func(event):
+		'''Start after click on button del_func in reminder window: delete field from DB
+		'''
 		data_del_reminder = rem[0], rem[1], rem[2]
 		try:
 			con = sqlite3.connect('reminders.db')
@@ -659,7 +669,7 @@ ent_minute.grid(row = 5, column = 5)
 but1 = Button(root, height = 1, width = 24, font = 'Verdana 18', bg = 'yellow', activebackground = 'green')
 but1['text'] = "Save"
 but1.bind('<Button-1>', save_reminder)
-but1.grid(row = 6,  column = 0, columnspan = 4)
+but1.grid(row = 7,  column = 0, columnspan = 4)
 
 but2 = Button(root, height = 1, width = 10, font = 'Verdana 8', bg = 'lightblue', activebackground = 'green')
 but2['text'] = "Rem for day"
@@ -685,6 +695,11 @@ but6 = Button(root, height = 1, width = 10, font = 'Verdana 8', bg = 'lightblue'
 but6['text'] = "Rem ALL"
 but6.bind('<Button-1>', reminder_all)
 but6.grid(row = 8,  column = 3)
+
+c1 = IntVar()
+che1 = Checkbutton(root, text='Every year', variable=c1, onvalue=1, offvalue=0)
+#che1.select()
+che1.grid(row = 6, column = 3)
 
 fra = Frame(root, height = 25, width = 400, bg = 'white') # as status window in the bootom of window
 fra.grid(row = 9, column = 0, columnspan = 7)
